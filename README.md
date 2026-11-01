@@ -72,6 +72,18 @@ Same test with a random initial estimate error (writes `docs/ekf_open_loop_init_
 python analysis/ekf_open_loop.py --init-error --seed 3
 ```
 
+Closed-loop test, EKF + LQR from start to dock (writes `docs/tracking.png`):
+
+```
+python analysis/tracking_test.py
+```
+
+Same test with a random initial estimate error (writes `docs/tracking_init_seed3.png`):
+
+```
+python analysis/tracking_test.py --init-error --seed 3
+```
+
 ## Repository Structure
 
 ```
@@ -84,7 +96,7 @@ src/
   perception/        LiDAR ray-cast scanner, ArUco detection and pose,
                      wheel encoders, marker measurement and noise model
   estimation/        EKF
-  control/           LQR tracker and docking (step 3)
+  control/           reference trajectory, LQR tracker, LiDAR speed limit
 analysis/            model checks, sensor calibration and EKF evaluation
                      (the only code that reads simulator ground truth)
 main.py
@@ -230,3 +242,57 @@ Output of `python analysis/ekf_open_loop.py` (with and without `--init-error`). 
 - Simulated odometry is close to perfect (11 mm drift over about 7 m), so the nominal run shows little difference between EKF and odometry. The initial-error run shows the correction: odometry keeps a 6.2° heading error and drifts 28 cm, the EKF ends at 1.1 cm and 0.7°.
 - All range and bearing updates pass the gate. 9% of heading updates are rejected, all at long range.
 - Seed 3 starts with a 6° heading error (a 2σ draw) and its heading converges slowly, sitting at the edge of the 3σ band for about 10 s. With a single marker, heading is weakly observable and the heading reading is noisy at 3 m.
+
+## Control
+
+### Reference trajectory
+
+Hand-placed waypoints joined by circular fillets (R = 0.30 m), so the robot never has to stop and turn on the spot, which is the uncontrollable case (v_r = 0). The path keeps at least 0.34 m from every obstacle and ends with a straight 0.4 m approach along y = 1.2 into the docking point (1.70, 1.20) facing +x.
+
+| Waypoint (m) | Purpose |
+|---|---|
+| (-1.50, -1.50) | start |
+| (0.05, -1.50) | below box 1 |
+| (0.05, -0.20) | centre of the gap between box 1 and box 2 |
+| (0.90, 0.45) | past the cylinder at (0.2, 0.6) |
+| (1.05, 1.20) | onto the dock centre line |
+| (1.70, 1.20) | docking point |
+
+Speed: 0.15 m/s cruise, 0.08 m/s for the last 0.5 m, acceleration and braking limited to 0.10 m/s². Path length 5.10 m, duration 38.1 s, resampled every 20 ms into [x_r, y_r, θ_r, v_r, ω_r].
+
+### LQR tracker
+
+The tracking error is expressed in the robot frame (along-track, lateral, heading) using the EKF estimate, and the command is feedforward plus LQR correction:
+
+$$v = v_r \cos e_3 + K_1 e, \qquad \omega = \omega_r + K_2 e$$
+
+| Item | Value |
+|---|---|
+| Model | tracking-error model above, discretised with Δt = 20 ms |
+| Q (Bryson) | 1 / (0.10 m, 0.05 m, 10°)² |
+| R (Bryson) | 1 / (0.10 m/s, 0.50 rad/s)² |
+| Gain scheduling | DARE re-solved every step for the current (v_r, ω_r), doubling algorithm, < 1 ms |
+| Linearisation floor | v_r ≥ 0.05 m/s in the model (lateral error is uncontrollable at v_r = 0) |
+| Wheel saturation | v and ω scaled together if a wheel exceeds 7.88 rad/s (keeps path curvature) |
+
+Example gain on a straight at v_r = 0.15 m/s: K = [[0.99, 0, 0], [0, 9.67, 3.27]]. Along-track error is corrected by speed, lateral and heading error by turn rate.
+
+### LiDAR speed limit
+
+Forward speed is capped by the closest LiDAR return within ±30° of straight ahead: no cap above 0.35 m, linear down to zero at 0.18 m (distances from the LiDAR). The cap only slows the robot; it never steers.
+
+### Results
+
+Output of `python analysis/tracking_test.py` (with and without `--init-error`). Tracking errors compare the true pose with the reference while the reference is moving; docking error is the true final pose against (1.70, 1.20, 0°).
+
+| Run | Along RMSE | Lateral RMSE (max) | Heading RMSE | Docking error | Peak wheel speed |
+|---|---|---|---|---|---|
+| Nominal | 0.009 m | 0.004 m (0.012 m) | 0.54° | 0.005 m, +0.09° | 7.47 rad/s |
+| Initial error (seed 3) | 0.021 m | 0.029 m (0.053 m) | 3.61° | 0.005 m, -0.22° | 7.75 rad/s |
+
+![Tracking nominal](docs/tracking.png)
+
+![Tracking initial error](docs/tracking_init_seed3.png)
+
+- The controller uses only the EKF estimate. With a wrong initial estimate it tracks the wrong pose until the marker is seen at about 10 s, so the true robot drifts up to 5 cm off the path; once the EKF corrects, the controller brings it back and it docks within 5 mm.
+- A first version capped forward speed at the cruise speed. Because the wheels reach about 97% of the commanded speed, the robot fell behind and could not catch up (along-track RMSE 0.035 m). Capping at the robot's top speed, 0.26 m/s, reduced it to 0.009 m.
