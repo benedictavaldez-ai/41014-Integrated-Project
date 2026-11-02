@@ -63,6 +63,7 @@ class Trajectory:
         v_mid = np.maximum((v_lim[:-1] + v_lim[1:]) / 2, 1e-3)
         t = np.concatenate([[0], np.cumsum(seg / v_mid)])
         self.duration = t[-1]
+        self.dock_time = float(np.interp(self.length - DOCK_SLOW_DIST, s, t))
 
         # resample at the control rate
         self.t = np.arange(0, self.duration, dt)

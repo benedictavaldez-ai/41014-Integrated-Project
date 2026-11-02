@@ -6,6 +6,10 @@ STOP_DIST = 0.18
 SLOW_DIST = 0.35
 V_MAX = 0.26
 
+# distances while docking
+DOCK_STOP_DIST = 0.12
+DOCK_SLOW_DIST = 0.25
+
 
 # front clearance
 def front_clearance(angles, ranges):
@@ -14,6 +18,6 @@ def front_clearance(angles, ranges):
 
 
 # forward speed cap
-def limit_speed(v, clearance):
-    cap = V_MAX * np.clip((clearance - STOP_DIST) / (SLOW_DIST - STOP_DIST), 0.0, 1.0)
+def limit_speed(v, clearance, stop=STOP_DIST, slow=SLOW_DIST):
+    cap = V_MAX * np.clip((clearance - stop) / (slow - stop), 0.0, 1.0)
     return min(v, cap) if v > 0 else v
