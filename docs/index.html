@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TurtleBot3 visual waypoint navigation and ArUco docking in MuJoCo. 41014 Integrated Project, Track A.">
+  <title>TurtleBot3 Visual Navigation and Docking</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; }
+    .publication-title, .publication-authors, .section .title.is-3 { font-family: 'Google Sans', sans-serif; }
+    .publication-venue { color: #555; width: fit-content; font-weight: bold; }
+    .link-block a { margin-top: 5px; margin-bottom: 5px; }
+    .content table { font-size: 0.92rem; }
+    .figure-caption { font-size: 0.9rem; color: #555; margin-top: 0.4rem; }
+    .video-placeholder { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 10px; background: #222; }
+    .video-placeholder span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ddd; text-align: center; }
+    .todo { border-left: 5px solid #f2b705; }
+    .todo ul { margin-top: 0.4rem; }
+    img { border-radius: 6px; }
+    .footer { padding: 2rem 1.5rem 3rem; }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <h1 class="title is-1 publication-title">Visual Waypoint Navigation and Docking for a TurtleBot3</h1>
+      <div class="is-size-5 publication-authors">Benedict Valdez (25470271), Jacob Jung (25469949)</div>
+      <div class="is-size-5 publication-authors">Group 38 · 41014 Sensors and Control for Mechatronic Systems · UTS</div>
+      <div class="is-size-6 publication-venue" style="margin: 0.5rem auto 0;">Integrated Project, Track A: mobile robot visual waypoint navigation</div>
+      <div class="publication-links" style="margin-top: 1rem;">
+        <span class="link-block"><a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fab fa-github"></i></span><span>Code</span></a></span>
+        <span class="link-block"><a href="#video" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fab fa-youtube"></i></span><span>Video</span></a></span>
+        <span class="link-block"><a href="#results" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fas fa-chart-line"></i></span><span>Results</span></a></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero" id="video">
+  <div class="container is-max-desktop">
+    <div class="hero-body" style="padding-top: 0;">
+      <div class="video-placeholder"><span><i class="fab fa-youtube fa-3x"></i><br>5-minute demo video goes here<br><small>(replace this box with a YouTube embed)</small></span></div>
+      <div class="notification is-warning is-light todo" style="margin-top: 1rem;">
+        <b>To add:</b> the video must show the robot completing the task, at least one varied or disturbed trial, and the estimate with its
+        uncertainty next to the true state. Write a one-line caption under it.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top: 1rem;">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Overview</h2>
+    <div class="content has-text-justified">
+      <p>
+        We integrate sensing, estimation and control on a simulated TurtleBot3 Waffle Pi in MuJoCo. The robot starts in one corner of a
+        4 m × 4 m room with four obstacles, navigates through waypoints using its 2D LiDAR, and docks at a charging station marked with an
+        ArUco marker. The controller uses only the robot's estimated state, never the simulator's ground truth.
+      </p>
+    </div>
+    <div class="notification is-warning is-light todo">
+      <b>To add once steps 2 and 3 are done:</b> one or two sentences on the estimator and controller you used, plus 3 or 4 headline numbers
+      (for example docking error, success rate, estimation error) shown as large figures in a row.
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">System</h2>
+    <div class="columns">
+      <div class="column">
+        <img src="world_overview.png" alt="Simulation world">
+        <p class="figure-caption">The world: a 4 m × 4 m room with four obstacles and the green charging dock carrying ArUco marker id 0.</p>
+      </div>
+      <div class="column">
+        <img src="frame_diagram.png" alt="Frame diagram">
+        <p class="figure-caption">Frames: world {W}, robot base {B} at the wheel-axle centre, camera {C}, LiDAR {L} and marker {M}.</p>
+      </div>
+    </div>
+    <div class="content">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Item</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Robot</td><td>ROBOTIS TurtleBot3 Waffle Pi (MuJoCo menagerie model), with sensors added</td></tr>
+          <tr><td>Start pose</td><td>(−1.5, −1.5, 0)</td></tr>
+          <tr><td>Charging dock</td><td>marker centre at (1.899, 1.2), facing −x, docking point at (1.70, 1.2)</td></tr>
+          <tr><td>Physics timestep</td><td>2 ms</td></tr>
+          <tr><td>Wheel motors</td><td>velocity actuators, kv = 1, limit ±7.88 rad/s</td></tr>
+          <tr><td>Camera</td><td>640 × 480, vertical FOV 48.8°, 0.086 m ahead of the wheel axle, 0.107 m high</td></tr>
+          <tr><td>LiDAR</td><td>360 beams, 0.12 to 3.5 m, 0.172 m high, σ = 0.01 m</td></tr>
+          <tr><td>Encoders</td><td>wheel joint angle</td></tr>
+        </tbody>
+      </table>
+      <p><b>Changes to the supplied robot model:</b></p>
+      <ul>
+        <li>The chassis collision mesh touched the floor and dragged with full friction, so the robot reached only about 50% of the commanded speed and could not turn in place. The chassis contact is now frictionless, so it behaves like the real ball casters.</li>
+        <li>The wheel motor gain was raised from 0.1 to 1. With 0.1 the wheels reached only about 75% of the commanded speed because of joint friction. With 1 they reach about 97%.</li>
+        <li>The model had no camera, LiDAR or encoders, so these were added at the positions of the real Raspberry Pi camera and LDS-01.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Model</h2>
+    <div class="content">
+      <p>State $x = [p_x, p_y, \theta]^T$ of {B} in {W}, input $u = [v, \omega]^T$. Differential-drive (unicycle) kinematics with wheel radius r = 0.033 m and wheel separation b = 0.288 m:</p>
+      <p>$$\dot p_x = v\cos\theta,\quad \dot p_y = v\sin\theta,\quad \dot\theta = \omega,\qquad v = \tfrac{r(\omega_R+\omega_L)}{2},\quad \omega = \tfrac{r(\omega_R-\omega_L)}{b}$$</p>
+      <p>
+        <b>Assumptions:</b> no wheel slip, flat floor, motor dynamics fast compared with the controller. Checked in simulation: commanding
+        0.15 m/s gives 0.146 m/s, and commanding 0.5 rad/s gives 0.474 rad/s, with wheel speeds matching the kinematics exactly.
+      </p>
+      <p>Discrete-time model for the estimator (Euler, Δt):</p>
+      <p>$$x_{k+1} = x_k + \Delta t \begin{bmatrix} v_k\cos\theta_k \\ v_k\sin\theta_k \\ \omega_k \end{bmatrix},\qquad F_k = \begin{bmatrix} 1 & 0 & -v_k\Delta t\sin\theta_k \\ 0 & 1 & v_k\Delta t\cos\theta_k \\ 0 & 0 & 1 \end{bmatrix}$$</p>
+      <p>Tracking-error model for the controller, linearised about a reference $(v_r, \omega_r)$, with the error in the robot frame:</p>
+      <p>$$\dot e = \begin{bmatrix} 0 & \omega_r & 0 \\ -\omega_r & 0 & v_r \\ 0 & 0 & 0 \end{bmatrix} e + \begin{bmatrix} 1 & 0 \\ 0 & 0 \\ 0 & 1 \end{bmatrix} \delta u$$</p>
+      <div class="columns">
+        <div class="column">
+          <h4 class="title is-5">Controllability</h4>
+          <table class="table is-narrow">
+            <thead><tr><th>Reference</th><th>Rank</th></tr></thead>
+            <tbody>
+              <tr><td>$v_r = 0.2,\ \omega_r = 0$</td><td>3</td></tr>
+              <tr><td>$v_r = 0.2,\ \omega_r = 0.5$</td><td>3</td></tr>
+              <tr><td>$v_r = 0,\ \omega_r = 0.5$</td><td>3</td></tr>
+              <tr><td>$v_r = 0,\ \omega_r = 0$</td><td><b>2</b></td></tr>
+            </tbody>
+          </table>
+          <p>When the reference is stationary, sideways error cannot be corrected, because a differential-drive robot cannot move sideways.</p>
+        </div>
+        <div class="column">
+          <h4 class="title is-5">Observability</h4>
+          <table class="table is-narrow">
+            <thead><tr><th>Measurement</th><th>Rank</th></tr></thead>
+            <tbody>
+              <tr><td>Wheel odometry only</td><td>0</td></tr>
+              <tr><td>Range + bearing to one marker</td><td><b>2</b></td></tr>
+              <tr><td>Full marker pose from PnP</td><td>3</td></tr>
+            </tbody>
+          </table>
+          <p>With range and bearing to a single marker, rotating the robot's whole path around the marker gives identical measurements, so one direction stays unobservable.</p>
+        </div>
+      </div>
+      <p class="figure-caption">Both tables come from <code>python analysis/model_check.py</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Sensing and calibration</h2>
+    <div class="notification is-warning is-light todo">
+      <b>To add (Sensing criterion: calibration, noise handling, frame management):</b>
+      <ul>
+        <li>How each sensor's noise was modelled or measured, with the values used</li>
+        <li>Any calibration done, for example comparing camera measurements against ground truth, with a small table or plot</li>
+        <li>How measurements are transformed between frames (refer to the frame diagram above)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Estimation</h2>
+    <div class="notification is-warning is-light todo">
+      <b>To add (Estimation criterion: KF/EKF design, tuning, reported performance):</b>
+      <ul>
+        <li>The EKF prediction and measurement models (equations), and the Q and R values with the reason for each</li>
+        <li>How the filter was tuned, ideally with a small table comparing settings</li>
+        <li>Estimation error against ground truth with 3σ bounds, and a consistency measure such as NEES</li>
+        <li>A comparison with wheel odometry alone</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Navigation and control</h2>
+    <div class="notification is-warning is-light todo">
+      <b>To add (Control criterion: controller design, tuning, tracking results):</b>
+      <ul>
+        <li>How the LiDAR is used to avoid obstacles, and how waypoints and the docking approach are handled</li>
+        <li>The controller (state feedback or LQR): gains or Q/R weights, with the reasoning behind them</li>
+        <li>A statement that the controller uses only the estimated state</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="results">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Results</h2>
+    <div class="notification is-warning is-light todo">
+      <b>To add (Integration and robustness criterion):</b>
+      <ul>
+        <li>A map of the robot's path through the room, true and estimated</li>
+        <li>Quantitative results: docking error, tracking error, mission time, collisions</li>
+        <li>For Distinction: repeated trials under varied conditions (start pose, noise, disturbances), reported as mean ± spread, plus a quantified trade-off</li>
+        <li>Failures you found, traced to their cause in the model, sensing, estimator or controller</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Limitations</h2>
+    <div class="notification is-warning is-light todo"><b>To add:</b> an honest account of what the results do and do not show, and where the approach would break.</div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Install and run</h2>
+    <div class="content">
+<pre>git clone https://github.com/benedictavaldez-ai/41014-Integrated-Project.git
+cd 41014-Integrated-Project
+python -m venv .venv
+.venv\Scripts\activate          (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt
+python main.py
+python analysis/model_check.py</pre>
+      <p>Full instructions are in the <a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project">README</a>. Update these commands once steps 2 and 3 are in.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Team contributions</h2>
+    <div class="content">
+      <table class="table is-fullwidth">
+        <thead><tr><th>Member</th><th>Contribution</th></tr></thead>
+        <tbody>
+          <tr><td>Benedict Valdez (25470271)</td><td><i>[your own description]</i></td></tr>
+          <tr><td>Jacob Jung (25469949)</td><td><i>[your own description]</i></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3">Generative AI declaration</h2>
+    <div class="notification is-warning is-light todo"><b>To add:</b> which AI tools your team used and what for, in your own words.</div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="content has-text-centered">
+    <p>This page uses the <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a> project page template, licensed under <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>
