@@ -11,7 +11,7 @@ from analysis.ground_truth import true_pose
 from src.control.lqr import tracking_error
 from src.estimation.ekf import wrap
 from src.pipeline import DOCK_POSE, run
-from src.scenarios import OCCLUSION, PUSH_TIME, SCENARIOS
+from src.scenarios import SCENARIOS
 
 ROOT = Path(__file__).resolve().parent
 
@@ -91,7 +91,7 @@ def plot(log, truth, true_err, est_err, out):
     a.plot(*truth[:, :2].T, "g", label="true")
     a.plot(*log["est"][:, :2].T, "b:", label="EKF estimate")
     if "push" in log["scenario"] or log["scenario"] == "all":
-        i = np.searchsorted(t, PUSH_TIME)
+        i = np.searchsorted(t, log["settings"]["push_time"])
         a.plot(*truth[i, :2], "mo", label="push")
     blind = log["blind"]
     if np.any(blind):

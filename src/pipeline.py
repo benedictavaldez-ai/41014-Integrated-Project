@@ -59,20 +59,20 @@ def marker_range_bearing(x, marker_id=0):
     return np.hypot(mx - cx, my - cy), wrap(np.arctan2(my - cy, mx - cx) - x[2])
 
 
-def run(scenario="nominal", seed=0, init_error=False, viewer=False, observer=None):
+def run(scenario="nominal", seed=0, init_error=False, viewer=False, observer=None, jitter=False, lqr_weights=None):
     rng = np.random.default_rng(seed)
     model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
 
-    sc = Scenario(scenario, model)
+    sc = Scenario(scenario, model, rng if jitter else None)
     renderer = mujoco.Renderer(model, 480, 640)
     aruco = ArucoDetector()
     lidar = Lidar(model, rng=rng)
     enc = sc.encoders(data)
     traj = Trajectory(CONTROL_PERIOD)
-    tracker = LQRTracker(CONTROL_PERIOD)
+    tracker = LQRTracker(CONTROL_PERIOD) if lqr_weights is None else LQRTracker(CONTROL_PERIOD, *lqr_weights)
 
     # initial estimate
     x0 = START_POSE + (rng.multivariate_normal(np.zeros(3), P0) if init_error else 0)
@@ -199,5 +199,5 @@ def run(scenario="nominal", seed=0, init_error=False, viewer=False, observer=Non
     docked = state == DONE and np.hypot(*final[:2]) < DOCK_TOL_POS and abs(final[2]) < DOCK_TOL_HEADING
 
     out = {k: np.array(v) for k, v in log.items()}
-    out.update(final_state=state, docked=docked, traj=traj, scenario=scenario, false_ids=false_ids, bad_pnp=bad_pnp, relocalised=relocalised)
+    out.update(final_state=state, docked=docked, traj=traj, scenario=scenario, false_ids=false_ids, bad_pnp=bad_pnp, relocalised=relocalised, settings=sc.describe())
     return out
