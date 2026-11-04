@@ -84,6 +84,28 @@ Same test with a random initial estimate error (writes `docs/tracking_init_seed3
 python analysis/tracking_test.py --init-error --seed 3
 ```
 
+Full pipeline from start to dock, scored against ground truth (writes `docs/run_<scenario>.png`):
+
+```
+python run.py --scenario nominal --viewer
+```
+
+Scenarios: `nominal`, `odom_bias`, `push`, `occlusion`, `all`. `--viewer` opens the MuJoCo viewer in real time, `--init-error` starts with a wrong estimate, `--seed` sets the random seed.
+
+Repeated randomised trials (writes `analysis/results/trials.csv` and `docs/trials.png`):
+
+```
+python analysis/trials.py --trials 10 --jobs 2
+```
+
+LQR and EKF trade-off sweeps (writes `analysis/results/sweeps.csv`, `docs/sweep_lqr.png`, `docs/sweep_ekf.png`; `--plot-only` redraws the plots from the saved CSV):
+
+```
+python analysis/sweeps.py --jobs 2
+```
+
+Each run renders the camera at 10 Hz and takes about 1 to 2 minutes on a CPU; `--jobs` sets how many runs go in parallel.
+
 ## Repository Structure
 
 ```
@@ -97,10 +119,17 @@ src/
                      wheel encoders, marker measurement and noise model
   estimation/        EKF
   control/           reference trajectory, LQR tracker, LiDAR speed limit
-analysis/            model checks, sensor calibration and EKF evaluation
-                     (the only code that reads simulator ground truth)
-main.py
+  pipeline.py        full robot loop and state machine
+  scenarios.py       disturbances: odometry bias, push, camera occlusion
+analysis/            model checks, sensor calibration, EKF and tracking tests,
+                     repeated trials and trade-off sweeps
+  results/           trial and sweep results (CSV)
+docs/                figures and the project page
+run.py               entry point: run a scenario, score it against ground truth, plot it
+main.py              sensor smoke test
 ```
+
+Simulator ground truth is read only in `analysis/` and in the evaluation-only observer in `run.py`; nothing in `src/` uses it.
 
 ## Simulation Setup
 
@@ -135,9 +164,11 @@ $$v = \frac{r(\omega_R + \omega_L)}{2}, \qquad \omega = \frac{r(\omega_R - \omeg
 
 Assumptions: no wheel slip, flat floor, motor dynamics fast compared with the controller. The smoke test confirms the first and third: commanding v = 0.15 m/s gives 0.146 m/s, and commanding ω = 0.5 rad/s gives 0.474 rad/s with wheel speeds that match the kinematics exactly.
 
-Discrete-time model used by the EKF (Euler, Δt):
+Discrete-time model used by the EKF, driven by the measured wheel-angle changes Δφ_L, Δφ_R over each 20 ms step (midpoint rule):
 
-$$x_{k+1} = x_k + \Delta t \begin{bmatrix} v_k\cos\theta_k \\ v_k\sin\theta_k \\ \omega_k \end{bmatrix}, \qquad F_k = \begin{bmatrix} 1 & 0 & -v_k\Delta t\sin\theta_k \\ 0 & 1 & v_k\Delta t\cos\theta_k \\ 0 & 0 & 1 \end{bmatrix}$$
+$$\Delta s = \frac{r(\Delta\phi_R + \Delta\phi_L)}{2}, \qquad \Delta\theta = \frac{r(\Delta\phi_R - \Delta\phi_L)}{b}, \qquad \theta_m = \theta_k + \frac{\Delta\theta}{2}$$
+
+$$x_{k+1} = x_k + \begin{bmatrix} \Delta s\cos\theta_m \\ \Delta s\sin\theta_m \\ \Delta\theta \end{bmatrix}, \qquad F_k = \begin{bmatrix} 1 & 0 & -\Delta s\sin\theta_m \\ 0 & 1 & \Delta s\cos\theta_m \\ 0 & 0 & 1 \end{bmatrix}$$
 
 Tracking-error model used by the LQR, linearised about a reference (v_r, ω_r) with the error expressed in the robot frame:
 
@@ -164,7 +195,7 @@ When the reference is stationary, the linearised model cannot correct sideways e
 | Range + bearing to one marker, any motion | 2 |
 | Full marker pose from PnP, one frame | 3 |
 
-Range and bearing to a single landmark leave one direction unobservable: rotating the robot's whole path about the marker produces identical measurements. The EKF therefore uses the full marker pose from PnP (which also gives heading), or range and bearing to two or more markers.
+Range and bearing to a single landmark leave one direction unobservable: rotating the robot's whole path about the marker produces identical measurements. The EKF therefore adds the robot heading from the full PnP marker pose to the range and bearing measurement, which makes the pose observable from a single marker.
 
 ## Sensing
 
@@ -178,6 +209,8 @@ Each ArUco detection gives the EKF three numbers, z = [range, bearing, robot hea
 $$T_{world,base} = T_{world,marker} \cdot T_{cam,marker}^{-1} \cdot T_{base,cam}^{-1}$$
 
 Frames: world (x east, y north, z up), base (x forward, y left, z up, origin at the wheel axle), camera (OpenCV: x right, y down, z forward, 0.086 m ahead and 0.107 m above the base), marker (x right, y up, z out of the face). The camera transform was checked against MuJoCo's camera pose numerically.
+
+![Frame diagram](docs/frame_diagram.png)
 
 ### Calibration
 
@@ -296,3 +329,116 @@ Output of `python analysis/tracking_test.py` (with and without `--init-error`). 
 
 - The controller uses only the EKF estimate. With a wrong initial estimate it tracks the wrong pose until the marker is seen at about 10 s, so the true robot drifts up to 5 cm off the path; once the EKF corrects, the controller brings it back and it docks within 5 mm.
 - A first version capped forward speed at the cruise speed. Because the wheels reach about 97% of the commanded speed, the robot fell behind and could not catch up (along-track RMSE 0.035 m). Capping at the robot's top speed, 0.26 m/s, reduced it to 0.009 m.
+
+## Integration
+
+### State machine
+
+| State | Behaviour | Leaves when |
+|---|---|---|
+| NAVIGATE | LQR tracks the reference | reference enters the last 0.5 m → DOCK |
+| DOCK | slow final approach; needs a marker fix within 1 s while the marker is more than 0.3 m away | no fix → ACQUIRE; reference finished and robot still for 1 s → DONE |
+| ACQUIRE | stops and turns towards the estimated marker bearing (ω = 1.0 β, max 0.3 rad/s) | fix accepted → DOCK; 15 s → ABORT |
+| DONE / ABORT | stopped | |
+
+The reference clock only advances while the robot is allowed to move, so the target waits during LiDAR stops and ACQUIRE. Below 0.3 m the marker no longer fits in the image (702 px tall at the docking point), so the robot finishes on its estimate. While docking, the LiDAR limit uses 0.12 / 0.25 m because the dock wall is expected ahead. At DONE the robot judges success from its own estimate (within 3 cm and 3°).
+
+### Robustness
+
+| Problem found | Cause | Fix |
+|---|---|---|
+| False marker id 17 | floor reflections decoded as a marker | ignore ids not in the marker map |
+| NaN commands | solvePnP returned NaN at the image edge | drop non-finite detections |
+| Closed-loop NEES 14.7 | camera update applied before the predict step (20 ms stale estimate) | predict first; NEES 2.06 |
+| Gate lockout after a push | every measurement rejected as an outlier | 10 rejections in a row → add σ = 0.30 m, 0.30 m, 20° to P |
+| Stuck in DOCK with the marker out of view | robot stopped where the marker was cut off | ACQUIRE state |
+
+### Scenarios
+
+| Scenario | Disturbance |
+|---|---|
+| odom_bias | left encoder reads 1% high (2.0° per metre heading drift) |
+| push | 18 N sideways for 0.3 s at t = 15 s (about 10 cm slide, 9° turn) |
+| occlusion | camera blind from t = 24 s to 32 s |
+| all | all three |
+
+### Results
+
+Output of `python run.py --scenario <name>`. Docking error is the true final pose against (1.70, 1.20, 0°).
+
+| Scenario | Time | Lateral RMSE (max) | Heading RMSE | Estimation RMSE | NEES after first fix | Relocalised | Docking error |
+|---|---|---|---|---|---|---|---|
+| nominal | 39.0 s | 0.005 m (0.009) | 0.23° | 0.006 m | 2.06 | – | 0.004 m, -0.06° |
+| odom_bias | 39.9 s | 0.013 m (0.033) | 1.63° | 0.017 m | 13.94 | 2 | 0.005 m, +0.27° |
+| push | 39.0 s | 0.032 m (0.120) | 2.88° | 0.033 m | 22.61 | 1 | 0.004 m, -0.13° |
+| occlusion | 39.6 s | 0.005 m (0.009) | 0.81° | 0.007 m | 2.02 | – | 0.004 m, +0.14° |
+| all | 40.6 s | 0.025 m (0.097) | 3.67° | 0.030 m | 54.36 | 2 | 0.005 m, +0.21° |
+
+![All disturbances](docs/run_all.png)
+
+All five scenarios dock within 5 mm. NEES is close to 3 when the filter's assumptions hold and high under the push and encoder bias, which the process noise does not model; relocalisation recovers the estimate when the camera disagrees for 1 s. Results differ by about a millimetre between machines because camera rendering and OpenCV builds differ slightly.
+
+## Evaluation
+
+### Repeated trials
+
+10 randomised trials per scenario (`analysis/trials.py`). Each seed draws the initial estimate error (σ = 5 cm, 5 cm, 3°) and LiDAR noise, and varies the disturbance: encoder bias 0.5–1.5% on either wheel, push at t = 12–18 s towards +x or −x, blind window starting at t = 20–26 s. Success = DONE with true docking error under 3 cm and 3°. Every row of `analysis/results/trials.csv` records its seed and disturbance settings.
+
+| Scenario | Success | Docking error | Docking heading | Est. RMSE | Median NEES | Relocalisations |
+|---|---|---|---|---|---|---|
+| nominal | 10/10 | 3.9 ± 0.1 mm | 0.14 ± 0.11° | 43 ± 14 mm | 2.00 | 0.0 |
+| odom_bias | 10/10 | 5.0 ± 0.7 mm | 0.24 ± 0.15° | 46 ± 13 mm | 20.2 | 1.6 |
+| push | 10/10 | 3.9 ± 0.1 mm | 0.13 ± 0.07° | 57 ± 12 mm | 66.6 | 1.0 |
+| occlusion | 10/10 | 3.9 ± 0.1 mm | 0.16 ± 0.11° | 43 ± 14 mm | 1.74 | 0.0 |
+| all | 10/10 | 7.7 ± 2.8 mm | 0.71 ± 0.61° | 55 ± 12 mm | 52.7 | 1.9 |
+
+![Trials](docs/trials.png)
+
+- 50 of 50 trials docked; the worst was 12.7 mm and 1.83° with all disturbances together.
+- The nominal docking error is systematic (3.9 ± 0.1 mm): the robot stops slightly short as the reference slows to zero.
+- Estimation RMSE is over the whole run and is dominated by the deliberate initial error, which is only corrected once the marker is seen at about 10 s.
+- 10 trials per scenario cannot rule out a failure rate of about 10%.
+
+### Trade-offs
+
+`analysis/sweeps.py`, 3 seeds per setting, all 39 runs docked.
+
+LQR effort weight R (push scenario):
+
+| R scale | Docking error | RMS speed correction | Peak wheel speed | Lateral RMSE (true) |
+|---|---|---|---|---|
+| × 0.25 | 2.6 mm | 0.0091 m/s | 7.58 rad/s | 34 ± 7 mm |
+| × 0.5 | 3.2 mm | 0.0078 m/s | 7.47 rad/s | 29 ± 9 mm |
+| × 1 (used) | 3.8 mm | 0.0063 m/s | 7.47 rad/s | 28 ± 3 mm |
+| × 2 | 5.2 mm | 0.0059 m/s | 7.24 rad/s | 32 ± 4 mm |
+| × 4 | 7.2 mm | 0.0048 m/s | 7.14 rad/s | 29 ± 3 mm |
+
+![LQR sweep](docs/sweep_lqr.png)
+
+Lower R reduces the docking error at the cost of more correction effort and wheel speeds closer to the 7.88 rad/s limit. Lateral tracking does not change with R: the remaining true error is estimation error, so tracking is estimation-limited.
+
+EKF noise settings:
+
+| R inflation (nominal) | Mean NEES | Est. RMSE |
+|---|---|---|
+| 1× | 11.1 | 28 mm |
+| 2× | 3.26 | 25 mm |
+| 3× (used) | 2.43 | 24 mm |
+| 5× | 1.11 | 23 mm |
+
+| Wheel noise k (encoder bias) | Mean NEES | Est. RMSE | Relocalisations |
+|---|---|---|---|
+| 0.01 | 38.8 | 27.5 mm | 2 |
+| 0.02 (used) | 14.1 | 27.2 mm | 2 |
+| 0.05 | 3.49 | 25.0 mm | 0 |
+| 0.10 | 1.63 | 25.0 mm | 0 |
+
+![EKF sweeps](docs/sweep_ekf.png)
+
+NEES crosses the ideal value of 3 between R inflation 2× and 3×, and at a wheel noise of about k = 0.05. With k = 0.05 the filter stays consistent under a 1% encoder bias without relocalising; on the nominal case it gives NEES 1.35 with the same estimation error (24.1 vs 24.2 mm) and docking error (3.8 vs 3.9 mm).
+
+## Acknowledgements
+
+- TurtleBot3 Waffle Pi MJCF model and meshes: ROBOTIS, Apache 2.0 (`models/turtlebot3/`, unmodified; changes are in `models/tb3_robot.xml`).
+- Simulation: MuJoCo. Marker detection and pose: OpenCV ArUco and `solvePnP` (IPPE_SQUARE).
+- The discrete Riccati equation is solved with the structure-preserving doubling algorithm, checked against SciPy's `solve_discrete_are`.
