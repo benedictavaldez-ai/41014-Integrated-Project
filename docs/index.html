@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="TurtleBot3 visual waypoint navigation and ArUco docking in MuJoCo. 41014 Integrated Project, Track A.">
+  <meta name="description" content="TurtleBot3 visual waypoint navigation and ArUco docking in MuJoCo. 41014 Integrated Project, Track A, Group 38.">
   <title>TurtleBot3 Visual Navigation and Docking</title>
 
   <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
@@ -23,9 +23,11 @@
     .figure-caption { font-size: 0.9rem; color: #555; margin-top: 0.4rem; }
     .video-placeholder { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 10px; background: #222; }
     .video-placeholder span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ddd; text-align: center; }
-    .todo { border-left: 5px solid #f2b705; }
-    .todo ul { margin-top: 0.4rem; }
+    .headline .heading { font-size: 0.75rem; }
+    .headline .title { font-family: 'Google Sans', sans-serif; }
+    .table-wrap { overflow-x: auto; }
     img { border-radius: 6px; }
+    figure { margin: 1.2rem 0; }
     .footer { padding: 2rem 1.5rem 3rem; }
   </style>
 </head>
@@ -50,11 +52,8 @@
 <section class="hero" id="video">
   <div class="container is-max-desktop">
     <div class="hero-body" style="padding-top: 0;">
-      <div class="video-placeholder"><span><i class="fab fa-youtube fa-3x"></i><br>5-minute demo video goes here<br><small>(replace this box with a YouTube embed)</small></span></div>
-      <div class="notification is-warning is-light todo" style="margin-top: 1rem;">
-        <b>To add:</b> the video must show the robot completing the task, at least one varied or disturbed trial, and the estimate with its
-        uncertainty next to the true state. Write a one-line caption under it.
-      </div>
+      <div class="video-placeholder"><span><i class="fab fa-youtube fa-3x"></i><br>5-minute demo video goes here</span></div>
+      <p class="figure-caption has-text-centered">Demo: a nominal run from start to dock, a push disturbance and the recovery, the estimate and its 3σ uncertainty against the true pose, and the repeated trials.</p>
     </div>
   </div>
 </section>
@@ -65,14 +64,21 @@
     <div class="content has-text-justified">
       <p>
         We integrate sensing, estimation and control on a simulated TurtleBot3 Waffle Pi in MuJoCo. The robot starts in one corner of a
-        4 m × 4 m room with four obstacles, navigates through waypoints using its 2D LiDAR, and docks at a charging station marked with an
-        ArUco marker. The controller uses only the robot's estimated state, never the simulator's ground truth.
+        4 m × 4 m room with four obstacles, follows a planned path past them, and docks at a charging station marked with an ArUco marker.
+      </p>
+      <p>
+        The robot estimates its pose with an extended Kalman filter that fuses wheel-encoder odometry with range, bearing and heading
+        measured from the ArUco marker. It follows the path with a gain-scheduled LQR tracker that uses only the estimated state, never the
+        simulator's ground truth. A state machine handles the docking approach, marker re-acquisition and recovery from disturbances.
       </p>
     </div>
-    <div class="notification is-warning is-light todo">
-      <b>To add once steps 2 and 3 are done:</b> one or two sentences on the estimator and controller you used, plus 3 or 4 headline numbers
-      (for example docking error, success rate, estimation error) shown as large figures in a row.
-    </div>
+    <nav class="level headline" style="margin-top: 1.5rem;">
+      <div class="level-item has-text-centered"><div><p class="heading">Randomised trials docked</p><p class="title">50 / 50</p></div></div>
+      <div class="level-item has-text-centered"><div><p class="heading">Docking error, nominal</p><p class="title">3.9 mm</p></div></div>
+      <div class="level-item has-text-centered"><div><p class="heading">Docking error, worst case</p><p class="title">12.7 mm</p></div></div>
+      <div class="level-item has-text-centered"><div><p class="heading">Estimator NEES, nominal</p><p class="title">2.06</p></div></div>
+    </nav>
+    <p class="figure-caption has-text-centered">50 trials = 5 scenarios × 10 seeds. Nominal docking error 3.9 ± 0.1 mm and 0.14°. Worst case 12.7 mm and 1.83°, with encoder bias, a push and a camera blackout at once. A consistent filter gives NEES near 3.</p>
   </div>
 </section>
 
@@ -90,24 +96,23 @@
       </div>
     </div>
     <div class="content">
+      <div class="table-wrap">
       <table class="table is-striped is-fullwidth">
         <thead><tr><th>Item</th><th>Value</th></tr></thead>
         <tbody>
           <tr><td>Robot</td><td>ROBOTIS TurtleBot3 Waffle Pi (MuJoCo menagerie model), with sensors added</td></tr>
           <tr><td>Start pose</td><td>(−1.5, −1.5, 0)</td></tr>
-          <tr><td>Charging dock</td><td>marker centre at (1.899, 1.2), facing −x, docking point at (1.70, 1.2)</td></tr>
+          <tr><td>Charging dock</td><td>marker centre at (1.899, 1.2), facing −x, docking point at (1.70, 1.20) facing +x</td></tr>
           <tr><td>Physics timestep</td><td>2 ms</td></tr>
           <tr><td>Wheel motors</td><td>velocity actuators, kv = 1, limit ±7.88 rad/s</td></tr>
-          <tr><td>Camera</td><td>640 × 480, vertical FOV 48.8°, 0.086 m ahead of the wheel axle, 0.107 m high</td></tr>
-          <tr><td>LiDAR</td><td>360 beams, 0.12 to 3.5 m, 0.172 m high, σ = 0.01 m</td></tr>
-          <tr><td>Encoders</td><td>wheel joint angle</td></tr>
         </tbody>
       </table>
+      </div>
       <p><b>Changes to the supplied robot model:</b></p>
       <ul>
         <li>The chassis collision mesh touched the floor and dragged with full friction, so the robot reached only about 50% of the commanded speed and could not turn in place. The chassis contact is now frictionless, so it behaves like the real ball casters.</li>
         <li>The wheel motor gain was raised from 0.1 to 1. With 0.1 the wheels reached only about 75% of the commanded speed because of joint friction. With 1 they reach about 97%.</li>
-        <li>The model had no camera, LiDAR or encoders, so these were added at the positions of the real Raspberry Pi camera and LDS-01.</li>
+        <li>The model had no camera, LiDAR or encoders, so these were added at the positions of the real Raspberry Pi camera, LDS-01 and Dynamixel motors.</li>
       </ul>
     </div>
   </div>
@@ -123,8 +128,9 @@
         <b>Assumptions:</b> no wheel slip, flat floor, motor dynamics fast compared with the controller. Checked in simulation: commanding
         0.15 m/s gives 0.146 m/s, and commanding 0.5 rad/s gives 0.474 rad/s, with wheel speeds matching the kinematics exactly.
       </p>
-      <p>Discrete-time model for the estimator (Euler, Δt):</p>
-      <p>$$x_{k+1} = x_k + \Delta t \begin{bmatrix} v_k\cos\theta_k \\ v_k\sin\theta_k \\ \omega_k \end{bmatrix},\qquad F_k = \begin{bmatrix} 1 & 0 & -v_k\Delta t\sin\theta_k \\ 0 & 1 & v_k\Delta t\cos\theta_k \\ 0 & 0 & 1 \end{bmatrix}$$</p>
+      <p>Discrete-time model for the estimator, a midpoint step on the encoder wheel-angle changes $\Delta\phi_L, \Delta\phi_R$ over each 20 ms step:</p>
+      <p>$$\Delta s = \tfrac{r(\Delta\phi_R+\Delta\phi_L)}{2},\quad \Delta\theta = \tfrac{r(\Delta\phi_R-\Delta\phi_L)}{b},\quad \theta_m = \theta_k + \tfrac{\Delta\theta}{2}$$</p>
+      <p>$$x_{k+1} = x_k + \begin{bmatrix} \Delta s\cos\theta_m \\ \Delta s\sin\theta_m \\ \Delta\theta \end{bmatrix},\qquad F_k = \begin{bmatrix} 1 & 0 & -\Delta s\sin\theta_m \\ 0 & 1 & \Delta s\cos\theta_m \\ 0 & 0 & 1 \end{bmatrix}$$</p>
       <p>Tracking-error model for the controller, linearised about a reference $(v_r, \omega_r)$, with the error in the robot frame:</p>
       <p>$$\dot e = \begin{bmatrix} 0 & \omega_r & 0 \\ -\omega_r & 0 & v_r \\ 0 & 0 & 0 \end{bmatrix} e + \begin{bmatrix} 1 & 0 \\ 0 & 0 \\ 0 & 1 \end{bmatrix} \delta u$$</p>
       <div class="columns">
@@ -139,7 +145,7 @@
               <tr><td>$v_r = 0,\ \omega_r = 0$</td><td><b>2</b></td></tr>
             </tbody>
           </table>
-          <p>When the reference is stationary, sideways error cannot be corrected, because a differential-drive robot cannot move sideways.</p>
+          <p>When the reference is stationary, sideways error cannot be corrected, because a differential-drive robot cannot move sideways. The path is designed so the robot never has to turn on the spot.</p>
         </div>
         <div class="column">
           <h4 class="title is-5">Observability</h4>
@@ -148,10 +154,10 @@
             <tbody>
               <tr><td>Wheel odometry only</td><td>0</td></tr>
               <tr><td>Range + bearing to one marker</td><td><b>2</b></td></tr>
-              <tr><td>Full marker pose from PnP</td><td>3</td></tr>
+              <tr><td>Range + bearing + heading from PnP</td><td>3</td></tr>
             </tbody>
           </table>
-          <p>With range and bearing to a single marker, rotating the robot's whole path around the marker gives identical measurements, so one direction stays unobservable.</p>
+          <p>With range and bearing to a single marker, rotating the robot's whole path around the marker gives identical measurements, so one direction stays unobservable. The EKF therefore adds the heading from the PnP marker pose, which makes the full pose observable from one marker.</p>
         </div>
       </div>
       <p class="figure-caption">Both tables come from <code>python analysis/model_check.py</code>.</p>
@@ -162,12 +168,57 @@
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3">Sensing and calibration</h2>
-    <div class="notification is-warning is-light todo">
-      <b>To add (Sensing criterion: calibration, noise handling, frame management):</b>
+    <div class="content">
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Sensor</th><th>Model in simulation</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td>Wheel encoders</td><td>wheel angle quantised to 4096 ticks/rev (Dynamixel XM430), read every 20 ms</td><td>EKF prediction</td></tr>
+          <tr><td>Camera</td><td>640 × 480, vertical FOV 48.8°, f = 528.6 px from the FOV; ArUco DICT_4X4_50 id 0, 0.15 m</td><td>EKF update</td></tr>
+          <tr><td>LiDAR</td><td>360 beams, 0.12 to 3.5 m, σ = 0.01 m</td><td>forward speed limit</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4 class="title is-5">Marker measurement and frames</h4>
+      <p>
+        Each detection gives $z = [\text{range}, \text{bearing}, \text{robot heading}]$. Range $= \lVert t \rVert$ and bearing
+        $= -\operatorname{atan2}(t_x, t_z)$ come from the solvePnP translation $t$. Heading comes from the full marker pose, chained through
+        the frames:
+      </p>
+      <p>$$T_{W,B} = T_{W,M}\, T_{C,M}^{-1}\, T_{B,C}^{-1}$$</p>
       <ul>
-        <li>How each sensor's noise was modelled or measured, with the values used</li>
-        <li>Any calibration done, for example comparing camera measurements against ground truth, with a small table or plot</li>
-        <li>How measurements are transformed between frames (refer to the frame diagram above)</li>
+        <li><b>World {W}:</b> x east, y north, z up.</li>
+        <li><b>Base {B}:</b> x forward, y left, origin at the wheel axle.</li>
+        <li><b>Camera {C}:</b> OpenCV convention, x right, y down, z forward; 0.086 m ahead of and 0.107 m above the base.</li>
+        <li><b>Marker {M}:</b> x right, y up, z out of the face.</li>
+      </ul>
+      <p>The camera transform was checked numerically against MuJoCo's camera pose.</p>
+
+      <h4 class="title is-5">Calibration</h4>
+      <p>
+        The camera measurement was compared against simulator ground truth at 400 random poses facing the marker, 0.45 to 4.2 m away
+        (<code>analysis/marker_noise.py</code>). Ground truth is used only for this offline calibration, never at run time.
+      </p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Quantity</th><th>Bias</th><th>Noise (std)</th><th>Used in the EKF</th></tr></thead>
+        <tbody>
+          <tr><td>Range</td><td>reads long by 0.0088 r²</td><td>0.0042 r²</td><td>bias removed (k = 0.009), σ = 0.005 r²</td></tr>
+          <tr><td>Bearing</td><td>+0.056°</td><td>0.022°</td><td>σ = 0.1°</td></tr>
+          <tr><td>Heading from PnP</td><td>none</td><td>0.94° per m (robust); 11% off by more than 10°</td><td>σ = max(1°, 0.9° per m), separate gate</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figure>
+        <img src="marker_noise.png" alt="Camera marker measurement error against range">
+        <p class="figure-caption">Camera measurement error against ground truth over 400 poses.</p>
+      </figure>
+      <ul>
+        <li>Range error grows with r² because range comes from the marker's size in pixels ($w = fL/r$). The fit corresponds to a corner error of about 0.33 px.</li>
+        <li>The bearing offset is half a pixel: the principal point is at 320 px instead of 319.5 px.</li>
+        <li>Heading suffers from the planar PnP ambiguity, which causes 10° to 30° outliers. The EKF gate rejects them.</li>
+        <li>Noise handling: unknown marker ids are ignored (floor reflections were once decoded as id 17), and non-finite PnP results are dropped before the filter.</li>
       </ul>
     </div>
   </div>
@@ -176,14 +227,77 @@
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3">Estimation</h2>
-    <div class="notification is-warning is-light todo">
-      <b>To add (Estimation criterion: KF/EKF design, tuning, reported performance):</b>
-      <ul>
-        <li>The EKF prediction and measurement models (equations), and the Q and R values with the reason for each</li>
-        <li>How the filter was tuned, ideally with a small table comparing settings</li>
-        <li>Estimation error against ground truth with 3σ bounds, and a consistency measure such as NEES</li>
-        <li>A comparison with wheel odometry alone</li>
-      </ul>
+    <div class="content">
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Item</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>State</td><td>$x = [p_x, p_y, \theta]$</td></tr>
+          <tr><td>Prediction</td><td>every 20 ms from encoder wheel-angle changes, midpoint unicycle model (Model section)</td></tr>
+          <tr><td>Process noise Q</td><td>per wheel σ = 0.02 |Δφ| + 10⁻⁴ rad, mapped through the wheel Jacobian</td></tr>
+          <tr><td>Update</td><td>every 100 ms when the marker is seen: range + bearing, then heading as a separate update</td></tr>
+          <tr><td>Measurement noise R</td><td>calibrated values × 3</td></tr>
+          <tr><td>Gates</td><td>NIS &lt; 9.21 for range + bearing (χ², 2 dof, 99%); NIS &lt; 6.63 for heading (1 dof)</td></tr>
+          <tr><td>Covariance update</td><td>Joseph form</td></tr>
+          <tr><td>Initial covariance</td><td>σ = 0.05 m, 0.05 m, 3°</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The process noise is built from the wheels, where the noise actually enters:</p>
+      <p>$$Q_k = G_k J\, \Sigma_w\, J^T G_k^T,\qquad \Sigma_w = \operatorname{diag}\big((0.02|\Delta\phi_L| + 10^{-4})^2,\ (0.02|\Delta\phi_R| + 10^{-4})^2\big)$$</p>
+      <p>
+        The measurement model predicts range and bearing from the camera position $c = p + 0.086\,[\cos\theta, \sin\theta]^T$ to the known
+        marker position $m$, and heading directly:
+      </p>
+      <p>$$h(x) = \begin{bmatrix} \lVert m - c \rVert \\ \operatorname{atan2}(m_y - c_y,\ m_x - c_x) - \theta \end{bmatrix},\qquad h_\theta(x) = \theta$$</p>
+      <p>
+        Range and bearing are accurate and heading is not, so they are updated separately. A rejected heading never throws away a good
+        range and bearing.
+      </p>
+
+      <h4 class="title is-5">Tuning</h4>
+      <p>
+        With the calibrated R the filter was overconfident, because consecutive frames repeat their errors. The inflation factor was chosen
+        on NEES over 6 seeded runs with a random initial error:
+      </p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>R inflation</th><th>Mean NEES (ideal 3)</th><th>Position RMSE</th><th>Heading RMSE</th></tr></thead>
+        <tbody>
+          <tr><td>1×</td><td>15.6</td><td>0.039 m</td><td>0.83°</td></tr>
+          <tr><td>2×</td><td>5.3</td><td>0.033 m</td><td>0.71°</td></tr>
+          <tr><td><b>3× (used)</b></td><td><b>3.5</b></td><td><b>0.032 m</b></td><td><b>0.65°</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4 class="title is-5">Performance</h4>
+      <p>On the open-loop test path (<code>analysis/ekf_open_loop.py</code>), the EKF compared with odometry alone:</p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Run</th><th>Final position error</th><th>Final heading error</th><th>Position RMSE</th><th>Mean NEES</th></tr></thead>
+        <tbody>
+          <tr><td>Nominal, EKF</td><td>0.005 m</td><td>+0.30°</td><td>0.012 m</td><td>1.08</td></tr>
+          <tr><td>Nominal, odometry only</td><td>0.011 m</td><td>+0.05°</td><td>–</td><td>–</td></tr>
+          <tr><td>Initial error, EKF</td><td>0.011 m</td><td>+0.70°</td><td>0.067 m</td><td>9.41</td></tr>
+          <tr><td>Initial error, odometry only</td><td>0.282 m</td><td>+6.17°</td><td>–</td><td>–</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>
+        Odometry alone never recovers from a wrong starting estimate. The EKF corrects it as soon as the marker comes into view. In the full
+        closed loop (nominal) the estimation RMSE is 6 mm and the NEES after the first marker fix is 2.06.
+      </p>
+      <div class="columns">
+        <div class="column">
+          <img src="ekf_open_loop.png" alt="EKF against odometry on the open-loop path">
+          <p class="figure-caption">EKF and odometry against the true path, open-loop test.</p>
+        </div>
+        <div class="column">
+          <img src="run_nominal.png" alt="Estimation error with 3 sigma bounds">
+          <p class="figure-caption">Closed-loop nominal run: estimation error against the true pose with the 3σ uncertainty band.</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -191,28 +305,156 @@
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3">Navigation and control</h2>
-    <div class="notification is-warning is-light todo">
-      <b>To add (Control criterion: controller design, tuning, tracking results):</b>
-      <ul>
-        <li>How the LiDAR is used to avoid obstacles, and how waypoints and the docking approach are handled</li>
-        <li>The controller (state feedback or LQR): gains or Q/R weights, with the reasoning behind them</li>
-        <li>A statement that the controller uses only the estimated state</li>
-      </ul>
+    <div class="content">
+      <h4 class="title is-5">Path</h4>
+      <p>
+        Six hand-placed waypoints are joined by circular fillets (R = 0.30 m), so the robot never stops to turn on the spot, which is the
+        uncontrollable case ($v_r = 0$). The path stays at least 0.34 m from every obstacle and ends with a straight 0.4 m approach along
+        y = 1.2 into the docking point (1.70, 1.20), facing +x. Speed is 0.15 m/s, dropping to 0.08 m/s for the last 0.5 m, with 0.10 m/s²
+        acceleration and braking. Length 5.10 m, duration 38.1 s.
+      </p>
+
+      <h4 class="title is-5">Controller</h4>
+      <p>
+        The tracking error $e$ (along-track, lateral, heading) is computed in the robot frame from the <b>EKF estimate only</b>. The command
+        is feedforward from the reference plus an LQR correction:
+      </p>
+      <p>$$v = v_r\cos e_3 + K_1 e,\qquad \omega = \omega_r + K_2 e$$</p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Item</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Q, R (Bryson's rule)</td><td>Q = 1/(0.10 m, 0.05 m, 10°)², R = 1/(0.10 m/s, 0.50 rad/s)²</td></tr>
+          <tr><td>Gain scheduling</td><td>discrete Riccati equation re-solved every 20 ms for the current $(v_r, \omega_r)$, doubling algorithm, under 1 ms</td></tr>
+          <tr><td>Example gain (straight, 0.15 m/s)</td><td>K = [[0.99, 0, 0], [0, 9.67, 3.27]]</td></tr>
+          <tr><td>Linearisation floor</td><td>$v_r \ge 0.05$ m/s in the model, because lateral error is uncontrollable at $v_r = 0$</td></tr>
+          <tr><td>Wheel saturation</td><td>v and ω scaled together above 7.88 rad/s per wheel, keeping the path curvature</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Lateral error is weighted most because it decides collisions and docking.</p>
+
+      <h4 class="title is-5">LiDAR</h4>
+      <p>
+        Forward speed is capped by the closest return within ±30° of straight ahead: no cap above 0.35 m, falling to zero at 0.18 m
+        (0.25 m and 0.12 m while docking, where the dock wall is expected). The LiDAR only slows the robot and never steers.
+      </p>
+
+      <h4 class="title is-5">Tracking results</h4>
+      <p>Closed loop, nominal: lateral RMSE 5 mm (max 9 mm), heading RMSE 0.23°, docking error 4 mm.</p>
+      <p>
+        <b>Diagnosed during tuning:</b> a first LiDAR cap at the cruise speed stopped the controller catching up for the wheels' 3% speed
+        loss, so along-track error grew to 6 cm. Capping at the robot's top speed (0.26 m/s) brought it down to 0.9 cm.
+      </p>
+      <figure>
+        <img src="tracking.png" alt="Closed-loop tracking errors">
+        <p class="figure-caption">Closed-loop tracking error along the path (<code>analysis/tracking_test.py</code>).</p>
+      </figure>
     </div>
   </div>
 </section>
 
 <section class="section" id="results">
   <div class="container is-max-desktop">
-    <h2 class="title is-3">Results</h2>
-    <div class="notification is-warning is-light todo">
-      <b>To add (Integration and robustness criterion):</b>
+    <h2 class="title is-3">Integration and results</h2>
+    <div class="content">
+      <h4 class="title is-5">State machine</h4>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>State</th><th>Behaviour</th><th>Leaves when</th></tr></thead>
+        <tbody>
+          <tr><td>NAVIGATE</td><td>LQR tracks the reference</td><td>reference enters the last 0.5 m → DOCK</td></tr>
+          <tr><td>DOCK</td><td>slow final approach; needs a marker fix within 1 s while the marker is more than 0.3 m away</td><td>no fix → ACQUIRE; reference finished and robot still for 1 s → DONE</td></tr>
+          <tr><td>ACQUIRE</td><td>stops and turns towards the estimated marker bearing</td><td>fix accepted → DOCK; 15 s → ABORT</td></tr>
+          <tr><td>DONE / ABORT</td><td>stopped</td><td>–</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>
+        The reference clock only advances while the robot may move, so the target waits during LiDAR stops and ACQUIRE. Below 0.3 m the
+        marker no longer fits in the image, so the robot finishes on its estimate. Ground truth never enters <code>src/</code>:
+        <code>run.py</code> records it through an evaluation-only observer for scoring.
+      </p>
+      <figure>
+        <img src="run_all.png" alt="Path through the room, true and estimated">
+        <p class="figure-caption">Path through the room, true and estimated, with all three disturbances at once.</p>
+      </figure>
+
+      <h4 class="title is-5">Scenarios</h4>
+      <p>Fixed settings, run with <code>python run.py --scenario &lt;name&gt;</code>:</p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Scenario</th><th>Disturbance</th><th>Lateral RMSE (max)</th><th>Est. RMSE</th><th>NEES</th><th>Docking error</th></tr></thead>
+        <tbody>
+          <tr><td>nominal</td><td>none</td><td>0.005 m (0.009)</td><td>0.006 m</td><td>2.06</td><td>0.004 m, −0.06°</td></tr>
+          <tr><td>odom_bias</td><td>left encoder +1%</td><td>0.013 m (0.033)</td><td>0.017 m</td><td>13.94</td><td>0.005 m, +0.27°</td></tr>
+          <tr><td>push</td><td>18 N × 0.3 s at 15 s</td><td>0.032 m (0.120)</td><td>0.033 m</td><td>22.61</td><td>0.004 m, −0.13°</td></tr>
+          <tr><td>occlusion</td><td>camera blind 24 to 32 s</td><td>0.005 m (0.009)</td><td>0.007 m</td><td>2.02</td><td>0.004 m, +0.14°</td></tr>
+          <tr><td>all</td><td>all three</td><td>0.025 m (0.097)</td><td>0.030 m</td><td>54.36</td><td>0.005 m, +0.21°</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4 class="title is-5">Repeated trials</h4>
+      <p>
+        10 trials per scenario (<code>analysis/trials.py</code>). Each seed randomises the initial estimate error, LiDAR noise, push time and
+        direction, bias size and wheel, and the start of the blind window. Success means DONE within 3 cm and 3°.
+      </p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Scenario</th><th>Success</th><th>Docking error</th><th>Docking heading</th><th>Median NEES</th></tr></thead>
+        <tbody>
+          <tr><td>nominal</td><td>10/10</td><td>3.9 ± 0.1 mm</td><td>0.14 ± 0.11°</td><td>2.00</td></tr>
+          <tr><td>odom_bias</td><td>10/10</td><td>5.0 ± 0.7 mm</td><td>0.24 ± 0.15°</td><td>20.2</td></tr>
+          <tr><td>push</td><td>10/10</td><td>3.9 ± 0.1 mm</td><td>0.13 ± 0.07°</td><td>66.6</td></tr>
+          <tr><td>occlusion</td><td>10/10</td><td>3.9 ± 0.1 mm</td><td>0.16 ± 0.11°</td><td>1.74</td></tr>
+          <tr><td>all</td><td>10/10</td><td>7.7 ± 2.8 mm</td><td>0.71 ± 0.61°</td><td>52.7</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figure>
+        <img src="trials.png" alt="Repeated randomised trials">
+        <p class="figure-caption">Docking error and estimator consistency over the 50 randomised trials.</p>
+      </figure>
+
+      <h4 class="title is-5">Trade-offs</h4>
+      <p>From <code>analysis/sweeps.py</code>, 3 seeds per setting. All 39 runs docked.</p>
       <ul>
-        <li>A map of the robot's path through the room, true and estimated</li>
-        <li>Quantitative results: docking error, tracking error, mission time, collisions</li>
-        <li>For Distinction: repeated trials under varied conditions (start pose, noise, disturbances), reported as mean ± spread, plus a quantified trade-off</li>
-        <li>Failures you found, traced to their cause in the model, sensing, estimator or controller</li>
+        <li>
+          <b>Control effort against accuracy.</b> Lowering the LQR effort weight from R × 4 to R × 0.25 cuts docking error from 7.2 mm to
+          2.6 mm, but nearly doubles the speed correction (0.0048 to 0.0091 m/s) and raises the peak wheel speed from 7.14 to 7.58 rad/s
+          (limit 7.88). Lateral tracking does not change, because the remaining true error is estimation error.
+        </li>
+        <li>
+          <b>Consistency against caution.</b> NEES crosses the ideal 3 between R inflation 2× and 3× (used: 3×, NEES 2.43). Under a 1%
+          encoder bias, raising the wheel noise k from 0.02 to 0.05 brings NEES from 14.1 to 3.49 and removes the need to relocalise, with
+          no loss of accuracy. We kept k = 0.02 and report 0.05 as the better setting for a robot with uncalibrated wheels.
+        </li>
       </ul>
+      <div class="columns">
+        <div class="column">
+          <img src="sweep_lqr.png" alt="LQR effort weight sweep">
+          <p class="figure-caption">LQR effort weight: docking error against control effort.</p>
+        </div>
+        <div class="column">
+          <img src="sweep_ekf.png" alt="EKF noise sweep">
+          <p class="figure-caption">EKF noise settings: consistency (NEES) against accuracy.</p>
+        </div>
+      </div>
+
+      <h4 class="title is-5">Failures found and traced to their cause</h4>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Crash on marker id 17</td><td>floor reflections decoded as a marker</td><td>ignore ids not in the marker map</td></tr>
+          <tr><td>NaN commands</td><td>solvePnP returned NaN at the image edge</td><td>drop non-finite detections</td></tr>
+          <tr><td>Closed-loop NEES 14.7</td><td>camera update applied before the predict step (20 ms stale estimate)</td><td>predict first: NEES 2.06</td></tr>
+          <tr><td>Push run aborted, estimate 27 cm off</td><td>gate lockout: every measurement rejected after the unseen push</td><td>relocalise after 10 consecutive rejections</td></tr>
+          <tr><td>Encoder-bias run stuck in DOCK</td><td>robot stopped with the marker out of view</td><td>ACQUIRE state</td></tr>
+        </tbody>
+      </table>
+      </div>
     </div>
   </div>
 </section>
@@ -220,7 +462,18 @@
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3">Limitations</h2>
-    <div class="notification is-warning is-light todo"><b>To add:</b> an honest account of what the results do and do not show, and where the approach would break.</div>
+    <div class="content">
+      <ul>
+        <li>10 trials per scenario show the behaviour is repeatable, but cannot rule out a failure rate of about 10%.</li>
+        <li>The nominal docking error is a repeatable 3.9 mm short of the target: the robot stops slightly early as the reference slows to zero. The LQR sweep traces this to the controller's effort weight.</li>
+        <li>There is one marker. Until it is in view (about the first 10 s) the robot runs on odometry alone, and heading is only weakly constrained at long range.</li>
+        <li>The process noise models random wheel noise only. Under encoder bias or a push the filter is overconfident (NEES 14 to 67) until the camera corrects it. Relocalising after 10 rejections is a rule of thumb, not a model of the disturbance.</li>
+        <li>The path is hand-planned on a known map. The LiDAR slows or stops the robot but does not re-plan around unknown obstacles.</li>
+        <li>The last 0.3 m is driven without the marker, which no longer fits in the camera image.</li>
+        <li>The simulation is idealised: odometry drifts about 11 mm over 7 m, and there is no camera latency or motion blur. The 3× measurement-noise inflation was tuned on one path.</li>
+        <li>Results vary by about a millimetre between machines, because camera rendering and OpenCV builds differ slightly.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -232,10 +485,31 @@
 cd 41014-Integrated-Project
 python -m venv .venv
 .venv\Scripts\activate          (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
-python main.py
-python analysis/model_check.py</pre>
-      <p>Full instructions are in the <a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project">README</a>. Update these commands once steps 2 and 3 are in.</p>
+pip install -r requirements.txt</pre>
+      <p>Then, from the repo root:</p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>python run.py --scenario nominal --viewer</code></td><td>full pipeline, start to dock, in the MuJoCo viewer</td></tr>
+          <tr><td><code>python run.py --scenario all --viewer</code></td><td>all disturbances at once</td></tr>
+          <tr><td><code>python analysis/trials.py --trials 10 --jobs 2</code></td><td>repeated randomised trials</td></tr>
+          <tr><td><code>python analysis/sweeps.py --jobs 2</code></td><td>LQR and EKF trade-off sweeps</td></tr>
+          <tr><td><code>python analysis/marker_noise.py</code></td><td>camera calibration study</td></tr>
+          <tr><td><code>python analysis/ekf_open_loop.py</code></td><td>EKF test on the open-loop path</td></tr>
+          <tr><td><code>python analysis/tracking_test.py</code></td><td>closed-loop tracking test</td></tr>
+          <tr><td><code>python analysis/model_check.py</code></td><td>controllability and observability</td></tr>
+          <tr><td><code>python main.py</code></td><td>sensor smoke test</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>
+        Scenarios: <code>nominal</code>, <code>odom_bias</code>, <code>push</code>, <code>occlusion</code>, <code>all</code>. Each run takes
+        about 40 s of simulated time; the trials and sweeps take longer on a CPU, and <code>--jobs</code> sets how many run in parallel. If
+        <code>cv2</code> has no <code>aruco</code>, run <code>pip uninstall -y opencv-python</code> and then
+        <code>pip install opencv-contrib-python</code>. Full instructions are in the
+        <a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project">README</a>.
+      </p>
     </div>
   </div>
 </section>
@@ -244,13 +518,36 @@ python analysis/model_check.py</pre>
   <div class="container is-max-desktop">
     <h2 class="title is-3">Team contributions</h2>
     <div class="content">
+      <div class="table-wrap">
       <table class="table is-fullwidth">
-        <thead><tr><th>Member</th><th>Contribution</th></tr></thead>
+        <thead><tr><th style="min-width: 10rem;">Member</th><th>Contribution</th></tr></thead>
         <tbody>
-          <tr><td>Benedict Valdez (25470271)</td><td><i>[your own description]</i></td></tr>
-          <tr><td>Jacob Jung (25469949)</td><td><i>[your own description]</i></td></tr>
+          <tr>
+            <td>Benedict Valdez (25470271)</td>
+            <td>
+              I set up the repository and README structure and built the simulation: the 4 m × 4 m MuJoCo room with four obstacles, and the
+              charging dock with its ArUco marker. I adapted the ROBOTIS TurtleBot3 Waffle Pi model, making the chassis contact frictionless
+              so the robot could turn in place, raising the wheel motor gain from 0.1 to 1, and adding the camera, LiDAR and wheel encoders
+              at the real sensor positions. I wrote the LiDAR ray-cast scanner and the ArUco detection module, and derived the state-space
+              model with its controllability and observability analysis. I produced the project page, the frame diagram and the demo video.
+            </td>
+          </tr>
+          <tr>
+            <td>Jacob Jung (25469949)</td>
+            <td>
+              I wrote the estimation, control, integration and evaluation code. For sensing, I modelled the wheel encoders, built the marker
+              measurement (range, bearing and heading from PnP, through the frame chain), and calibrated it against ground truth over 400
+              poses to set the measurement noise. I designed and tuned the EKF, including separate gated updates and noise inflation chosen
+              on NEES. For control, I planned the reference trajectory, built the gain-scheduled LQR tracker with wheel saturation, and added
+              the LiDAR speed limit. I integrated everything into a single pipeline with a NAVIGATE / DOCK / ACQUIRE state machine,
+              relocalisation and detection checks, and diagnosed and fixed the five failures this exposed. I built the disturbance
+              scenarios, ran 50 randomised trials and the LQR and EKF trade-off sweeps, and wrote the README sections on sensing,
+              estimation, control, integration and evaluation.
+            </td>
+          </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </section>
@@ -258,7 +555,18 @@ python analysis/model_check.py</pre>
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3">Generative AI declaration</h2>
-    <div class="notification is-warning is-light todo"><b>To add:</b> which AI tools your team used and what for, in your own words.</div>
+    <div class="content">
+      <p>
+        <b>Benedict Valdez.</b> I used Claude (Anthropic) to plan the project, to generate and debug the simulation world, the robot model
+        changes, the LiDAR and ArUco modules and the model check, to draft the project page and the frame diagram, and to help with Git and
+        GitHub. I ran every script on my own machine, checked the outputs, and reviewed each change before committing it.
+      </p>
+      <p>
+        <b>Jacob Jung.</b> I used Claude (Anthropic) throughout my part of the project: to plan the work, draft and debug the estimation,
+        control, integration and evaluation code, run and analyse the simulation tests, and draft README text. All design choices,
+        parameter values and results were checked by running the code, and I reviewed and committed every change myself.
+      </p>
+    </div>
   </div>
 </section>
 
