@@ -21,8 +21,8 @@
     .link-block a { margin-top: 5px; margin-bottom: 5px; }
     .content table { font-size: 0.92rem; }
     .figure-caption { font-size: 0.9rem; color: #555; margin-top: 0.4rem; }
-    .video-placeholder { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 10px; background: #222; }
-    .video-placeholder span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ddd; text-align: center; }
+    .video-embed { position: relative; padding-bottom: 75%; height: 0; border-radius: 10px; overflow: hidden; background: #222; }
+    .video-embed iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
     .headline .heading { font-size: 0.75rem; }
     .headline .title { font-family: 'Google Sans', sans-serif; }
     .table-wrap { overflow-x: auto; }
@@ -42,7 +42,7 @@
       <div class="is-size-6 publication-venue" style="margin: 0.5rem auto 0;">Integrated Project, Track A: mobile robot visual waypoint navigation</div>
       <div class="publication-links" style="margin-top: 1rem;">
         <span class="link-block"><a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fab fa-github"></i></span><span>Code</span></a></span>
-        <span class="link-block"><a href="#video" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fab fa-youtube"></i></span><span>Video</span></a></span>
+        <span class="link-block"><a href="https://youtu.be/Imajzw79Vkw" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fab fa-youtube"></i></span><span>Video</span></a></span>
         <span class="link-block"><a href="#results" class="button is-normal is-rounded is-dark"><span class="icon"><i class="fas fa-chart-line"></i></span><span>Results</span></a></span>
       </div>
     </div>
@@ -52,8 +52,8 @@
 <section class="hero" id="video">
   <div class="container is-max-desktop">
     <div class="hero-body" style="padding-top: 0;">
-      <div class="video-placeholder"><span><i class="fab fa-youtube fa-3x"></i><br>5-minute demo video goes here</span></div>
-      <p class="figure-caption has-text-centered">Demo: a nominal run from start to dock, a push disturbance and the recovery, the estimate and its 3σ uncertainty against the true pose, and the repeated trials.</p>
+      <div class="video-embed"><iframe src="https://www.youtube.com/embed/Imajzw79Vkw" title="Demo video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+      <p class="figure-caption has-text-centered">Demo (4:32): the frame diagram, a nominal run from start to dock with the robot camera view, an 18 N push trial and its recovery, the EKF estimate and its 3σ uncertainty against the true pose, all disturbances at once, and the 50 randomised trials.</p>
     </div>
   </div>
 </section>
