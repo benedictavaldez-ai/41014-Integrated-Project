@@ -84,6 +84,42 @@
 
 <section class="section">
   <div class="container is-max-desktop">
+    <h2 class="title is-3">Install and run</h2>
+    <div class="content">
+<pre>git clone https://github.com/benedictavaldez-ai/41014-Integrated-Project.git
+cd 41014-Integrated-Project
+python -m venv .venv
+.venv\Scripts\activate          (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt</pre>
+      <p>Tested with Python 3.10 or newer. Then, from the repo root:</p>
+      <div class="table-wrap">
+      <table class="table is-striped is-fullwidth">
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>python main.py</code></td><td>sensor smoke test with the MuJoCo viewer (add <code>--headless</code> to run without it)</td></tr>
+          <tr><td><code>python analysis/model_check.py</code></td><td>controllability and observability check</td></tr>
+          <tr><td><code>python analysis/marker_noise.py</code></td><td>marker measurement noise study (<code>docs/marker_noise.png</code>)</td></tr>
+          <tr><td><code>python analysis/ekf_open_loop.py</code></td><td>EKF test on the open-loop path (<code>docs/ekf_open_loop.png</code>); add <code>--init-error --seed 3</code> for a wrong initial estimate</td></tr>
+          <tr><td><code>python analysis/tracking_test.py</code></td><td>closed-loop EKF + LQR test, start to dock (<code>docs/tracking.png</code>); add <code>--init-error --seed 3</code> for a wrong initial estimate</td></tr>
+          <tr><td><code>python run.py --scenario nominal --viewer</code></td><td>full pipeline, start to dock, scored against ground truth (<code>docs/run_&lt;scenario&gt;.png</code>)</td></tr>
+          <tr><td><code>python analysis/trials.py --trials 10 --jobs 2</code></td><td>repeated randomised trials (<code>analysis/results/trials.csv</code>, <code>docs/trials.png</code>)</td></tr>
+          <tr><td><code>python analysis/sweeps.py --jobs 2</code></td><td>LQR and EKF trade-off sweeps (<code>analysis/results/sweeps.csv</code>, <code>docs/sweep_lqr.png</code>, <code>docs/sweep_ekf.png</code>); <code>--plot-only</code> redraws from the saved CSV</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>
+        Scenarios: <code>nominal</code>, <code>odom_bias</code>, <code>push</code>, <code>occlusion</code>, <code>all</code>.
+        <code>--viewer</code> opens the MuJoCo viewer in real time, <code>--init-error</code> starts with a wrong estimate, and
+        <code>--seed</code> sets the random seed. Each run renders the camera at 10 Hz and takes about 1 to 2 minutes on a CPU;
+        <code>--jobs</code> sets how many runs go in parallel. Full instructions are in the
+        <a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project">README</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
     <h2 class="title is-3">System</h2>
     <div class="columns">
       <div class="column">
@@ -341,10 +377,15 @@
       </p>
 
       <h4 class="title is-5">Tracking results</h4>
-      <p>Closed loop, nominal: lateral RMSE 5 mm (max 9 mm), heading RMSE 0.23°, docking error 4 mm.</p>
       <p>
-        <b>Diagnosed during tuning:</b> a first LiDAR cap at the cruise speed stopped the controller catching up for the wheels' 3% speed
-        loss, so along-track error grew to 6 cm. Capping at the robot's top speed (0.26 m/s) brought it down to 0.9 cm.
+        Closed-loop tracking test (<code>analysis/tracking_test.py</code>), nominal: along-track RMSE 0.009 m, lateral RMSE 0.004 m
+        (max 0.012 m), heading RMSE 0.54°, docking error 0.005 m, peak wheel speed 7.47 rad/s. With a wrong initial estimate (seed 3) the
+        robot drifts up to 5 cm off the path until the marker is seen at about 10 s, then the EKF corrects and it still docks within 5 mm.
+      </p>
+      <p>
+        <b>Diagnosed during tuning:</b> a first version capped forward speed at the cruise speed. Because the wheels reach about 97% of the
+        commanded speed, the robot fell behind and could not catch up (along-track RMSE 0.035 m). Capping at the robot's top speed
+        (0.26 m/s) reduced it to 0.009 m.
       </p>
       <figure>
         <img src="tracking.png" alt="Closed-loop tracking errors">
@@ -473,43 +514,6 @@
         <li>The simulation is idealised: odometry drifts about 11 mm over 7 m, and there is no camera latency or motion blur. The 3× measurement-noise inflation was tuned on one path.</li>
         <li>Results vary by about a millimetre between machines, because camera rendering and OpenCV builds differ slightly.</li>
       </ul>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="container is-max-desktop">
-    <h2 class="title is-3">Install and run</h2>
-    <div class="content">
-<pre>git clone https://github.com/benedictavaldez-ai/41014-Integrated-Project.git
-cd 41014-Integrated-Project
-python -m venv .venv
-.venv\Scripts\activate          (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt</pre>
-      <p>Then, from the repo root:</p>
-      <div class="table-wrap">
-      <table class="table is-striped is-fullwidth">
-        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr><td><code>python run.py --scenario nominal --viewer</code></td><td>full pipeline, start to dock, in the MuJoCo viewer</td></tr>
-          <tr><td><code>python run.py --scenario all --viewer</code></td><td>all disturbances at once</td></tr>
-          <tr><td><code>python analysis/trials.py --trials 10 --jobs 2</code></td><td>repeated randomised trials</td></tr>
-          <tr><td><code>python analysis/sweeps.py --jobs 2</code></td><td>LQR and EKF trade-off sweeps</td></tr>
-          <tr><td><code>python analysis/marker_noise.py</code></td><td>camera calibration study</td></tr>
-          <tr><td><code>python analysis/ekf_open_loop.py</code></td><td>EKF test on the open-loop path</td></tr>
-          <tr><td><code>python analysis/tracking_test.py</code></td><td>closed-loop tracking test</td></tr>
-          <tr><td><code>python analysis/model_check.py</code></td><td>controllability and observability</td></tr>
-          <tr><td><code>python main.py</code></td><td>sensor smoke test</td></tr>
-        </tbody>
-      </table>
-      </div>
-      <p>
-        Scenarios: <code>nominal</code>, <code>odom_bias</code>, <code>push</code>, <code>occlusion</code>, <code>all</code>. Each run takes
-        about 40 s of simulated time; the trials and sweeps take longer on a CPU, and <code>--jobs</code> sets how many run in parallel. If
-        <code>cv2</code> has no <code>aruco</code>, run <code>pip uninstall -y opencv-python</code> and then
-        <code>pip install opencv-contrib-python</code>. Full instructions are in the
-        <a href="https://github.com/benedictavaldez-ai/41014-Integrated-Project">README</a>.
-      </p>
     </div>
   </div>
 </section>
