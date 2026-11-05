@@ -2,6 +2,8 @@
 
 Track A: mobile robot visual waypoint navigation. A TurtleBot3 Waffle Pi in MuJoCo navigates a room with obstacles using its 2D LiDAR and docks at an ArUco-marked charging station. The pipeline is a state-space model of the platform, an EKF fusing wheel-encoder odometry with camera measurements of the marker, and an LQR trajectory tracker that uses only the estimated state.
 
+**Project page:** https://benedictavaldez-ai.github.io/41014-Integrated-Project/
+
 ![Simulation world](docs/world_overview.png)
 
 ## Group Information
